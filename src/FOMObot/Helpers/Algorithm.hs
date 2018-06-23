@@ -29,13 +29,14 @@ calcDensity s = do
 
 detectFOMOEvent :: ChannelState -> Bot Bool
 detectFOMOEvent state = do
-    densitySurpassesThreshold <- (>) <$> calcDensity state <*> (configThreshold <$> getConfig)
-    return $ and
-        [ densitySurpassesThreshold
-        , atLeastThreeUniqueUsers
-        ]
+    densitySurpassesThreshold <- do
+        density <- calcDensity state
+        config <- getConfig
+        let threshold = configThreshold config
+        return (density > threshold)
+    return $ densitySurpassesThreshold && atLeastThreeUniqueUsers
   where
-    atLeastThreeUniqueUsers = views stateHistory ((>=3) . length . nub . (map (^. historyUserId))) state
+    atLeastThreeUniqueUsers = views stateHistory ((>=3) . length . nub . map (^. historyUserId)) state
 
 shiftInHistory :: BotConfig -> HistoryItem -> ChannelState -> ChannelState
 shiftInHistory BotConfig{configHistorySize} historyItem s =

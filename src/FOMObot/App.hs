@@ -2,7 +2,6 @@ module FOMObot.App
     ( initApp
     ) where
 
-import qualified Data.Text as T
 import System.Environment (getEnv)
 import Control.Lens (uses, views, (^.))
 import Control.Monad (void, when)
@@ -12,7 +11,6 @@ import FOMObot.Helpers.CommandProcessor
 import FOMObot.Helpers.DMChannel
 import FOMObot.Helpers.FOMOChannel
 import FOMObot.Helpers.MessageProcessor
-import FOMObot.Helpers.Preferences
 import FOMObot.Types.AppState
 import FOMObot.Types.Bot
 import FOMObot.Types.BotConfig
