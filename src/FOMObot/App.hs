@@ -27,8 +27,8 @@ runApp m@(Slack.Message cid (Slack.UserComment uid) _ _ _ _) = do
       _ | ignoreFOMOChannel -> return ()
         | isDM -> processCommand m
         | otherwise -> do
-            eventOccured <- processMessage m
-            when eventOccured $ do
+            eventOccurred <- processMessage m
+            when eventOccurred $ do
                 alertFOMOChannel cid
                 users <- getUsersForChannel $ T.unpack $ cid ^. Slack.getId
                 alertUsers users cid
