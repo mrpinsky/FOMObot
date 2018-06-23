@@ -1,16 +1,20 @@
 module FOMObot.Types.ChannelState where
 
-import Control.Lens
+import qualified Data.Text as T
+import Control.Lens (makeLenses, view, _head, _last, (^.), (^?))
 import qualified Web.Slack as Slack
 
 import FOMObot.Types.HistoryItem
 
 data ChannelState = ChannelState
     { _stateHistory :: [HistoryItem]
-    , _stateEventHistory :: [Bool]
+    , _stateEventHistory :: [Maybe T.Text]
     } deriving (Show)
 
 makeLenses ''ChannelState
+
+channelHistoryText :: ChannelState -> T.Text
+channelHistoryText = view (stateHistory . traverse . historyText)
 
 type Density = Double
 

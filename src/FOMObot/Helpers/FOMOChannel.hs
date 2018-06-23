@@ -16,20 +16,22 @@ import FOMObot.Helpers.DMChannel (getDMChannel)
 import qualified FOMObot.Helpers.Preferences as Preferences
 import FOMObot.Types.Bot
 
+type Topic = Text
+
 isFOMOChannel :: Slack.ChannelId -> Bot Bool
 isFOMOChannel cid =
     maybe False (views Slack.channelId (== cid)) <$> getFOMOChannel
 
-alertFOMOChannel :: Slack.ChannelId -> Bot ()
-alertFOMOChannel cid =
+alertFOMOChannel :: Maybe Topic -> Slack.ChannelId -> Bot ()
+alertFOMOChannel topic cid =
     getFOMOChannel
     >>= maybe (return ())  (alert message . view Slack.channelId)
   where
     message :: Text
-    message = "<!here> " <> baseMessage cid
+    message = "<!here> " <> baseMessage topic cid
 
-alertUsers :: Slack.ChannelId -> Bot ()
-alertUsers cid =
+alertUsers :: Maybe Topic -> Slack.ChannelId -> Bot ()
+alertUsers topic cid =
     Preferences.getUsersForChannel cid
     >>= getDMChannelIds
     >>= mapM_ (alert message)
@@ -38,13 +40,18 @@ alertUsers cid =
     getDMChannelIds = fmap Maybe.catMaybes . mapM getDMChannel
 
     message :: Text
-    message = baseMessage cid
+    message = baseMessage topic cid
 
 alert :: Text -> Slack.ChannelId -> Bot ()
 alert message cid = Slack.sendMessage cid message
 
-baseMessage :: Slack.ChannelId -> Text
-baseMessage cid = "There's a party in <#" <> view Slack.getId cid <> ">!"
+baseMessage :: Maybe Text -> Slack.ChannelId -> Text
+baseMessage maybeTopic cid =
+    "There's a "
+    <> maybe "" (<> " ") maybeTopic
+    <> "party in <#"
+    <> view Slack.getId cid
+    <> "> and you're invited!"
 
 getFOMOChannel :: Bot (Maybe Slack.Channel)
 getFOMOChannel =

@@ -5,26 +5,32 @@ module FOMObot.Helpers.Algorithm
     ) where
 
 import Control.Lens ((^.), (^?), (&), (.~), (%~), _head, view, views)
+import qualified Data.Maybe as Maybe
 import qualified Data.List as List
+import Data.Text
 
-import FOMObot.Types.Bot
 import FOMObot.Types.BotConfig
 import FOMObot.Types.ChannelState
 import FOMObot.Types.HistoryItem
 
-detectFOMOEvent :: ChannelState -> Bot Bool
-detectFOMOEvent state = do
-    density <- getDensity . configHistorySize <$> getConfig
-    threshold <- configThreshold <$> getConfig
-
-    case density of
-        Nothing -> return False
-        Just d -> return $ uniqueUsers >= 3 && d > threshold
+detectFOMOEvent :: BotConfig -> ChannelState -> Maybe Text
+detectFOMOEvent config state =
+    if uniqueUsers >= 3 && sufficientlyDense then
+        Just $ channelHistoryText state
+    else
+        Nothing
   where
+    uniqueUsers :: Int
     uniqueUsers = views stateHistory (List.length . List.nub . List.map (view historyUserId)) state
 
-    getDensity :: Int -> Maybe Density
-    getDensity historySize = channelHistoryDensity historySize state
+    sufficientlyDense :: Bool
+    sufficientlyDense =
+        configThreshold config < channelDensity
+
+    channelDensity :: Density
+    channelDensity =
+        Maybe.fromMaybe 0 $ channelHistoryDensity (configHistorySize config) state
+
 
 shiftInHistory :: BotConfig -> HistoryItem -> ChannelState -> ChannelState
 shiftInHistory BotConfig{configHistorySize} historyItem s =
@@ -35,7 +41,7 @@ shiftInHistory BotConfig{configHistorySize} historyItem s =
   where
     isFromPreviousUser = (s ^? stateHistory . _head . historyUserId) == Just (historyItem ^. historyUserId)
 
-shiftInEvent :: BotConfig -> Bool -> ChannelState -> ChannelState
+shiftInEvent :: BotConfig -> Maybe Text -> ChannelState -> ChannelState
 shiftInEvent BotConfig{configDebounceSize} event s =
     s & stateEventHistory %~ shiftIn configDebounceSize event
 
