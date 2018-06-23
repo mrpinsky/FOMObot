@@ -29,9 +29,8 @@ runApp m@(Slack.Message cid (Slack.UserComment uid) _ _ _ _) = do
         | otherwise -> do
             eventOccurred <- processMessage m
             when eventOccurred $ do
+                alertUsers cid
                 alertFOMOChannel cid
-                users <- getUsersForChannel $ T.unpack $ cid ^. Slack.getId
-                alertUsers users cid
 
 runApp (Slack.ImCreated uid (Slack.IM cid _ _ _ _ _)) = setDMChannel uid cid
 
