@@ -8,6 +8,7 @@ import Control.Lens (uses, views, view)
 import qualified Data.List as List (find)
 import qualified Data.Maybe as Maybe
 import Data.Monoid ((<>))
+import Data.Text
 import qualified Web.Slack as Slack
 import qualified Web.Slack.Message as Slack
 
@@ -26,20 +27,24 @@ getFOMOChannel = do
     channelFinder = List.find (views Slack.channelName (== "fomo"))
 
 alertFOMOChannel :: Slack.ChannelId -> Bot ()
-alertFOMOChannel channelID = do
-    fomoChannel <- view Slack.channelId <$> getFOMOChannel
-    Slack.sendMessage fomoChannel message
+alertFOMOChannel cid =
+    view Slack.channelId <$> getFOMOChannel
+    >>= alert message
   where
-    message = "<!here> There's a party in <#" <> view Slack.getId channelID <> ">!"
+    message :: Text
+    message = "<!here> There's a party in <#" <> view Slack.getId cid <> ">!"
 
 alertUsers :: Slack.ChannelId -> Bot ()
-alertUsers cid = do
-    uids <- Preferences.getUsersForChannel cid
-    userDMChannels <- Maybe.catMaybes <$> maybeChannelIds uids
-    mapM_ alertUser userDMChannels
+alertUsers cid =
+    Preferences.getUsersForChannel cid
+    >>= getDMChannelIds
+    >>= mapM_ (alert message)
   where
-    maybeChannelIds :: [Slack.UserId] -> Bot [Maybe Slack.ChannelId]
-    maybeChannelIds = mapM getDMChannel
+    getDMChannelIds :: [Slack.UserId] -> Bot [Slack.ChannelId]
+    getDMChannelIds = fmap Maybe.catMaybes . mapM getDMChannel
 
-    alertUser channelId = Slack.sendMessage channelId message
+    message :: Text
     message = "There's a party in <#" <> view Slack.getId cid <> ">!"
+
+alert :: Text -> Slack.ChannelId -> Bot ()
+alert message cid = Slack.sendMessage cid message
