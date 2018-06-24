@@ -4,39 +4,27 @@ module FOMObot.Helpers.Algorithm
     , detectFOMOEvent
     ) where
 
-import Control.Lens ((^.), (^?), (^?!), (&), (.~), (%~), _head, _last, views)
-import Data.List (nub)
-import qualified Web.Slack as Slack
+import Control.Lens ((^.), (^?), (&), (.~), (%~), _head, view, views)
+import qualified Data.List as List
 
 import FOMObot.Types.Bot
 import FOMObot.Types.BotConfig
 import FOMObot.Types.ChannelState
 import FOMObot.Types.HistoryItem
 
-type Density = Double
-
-calcDensity :: ChannelState -> Bot Density
-calcDensity s = do
-    BotConfig{configHistorySize} <- getConfig
-    return $ if isArrayFull (s ^. stateHistory) configHistorySize
-        then calc $ fromIntegral configHistorySize
-        else 0
-  where
-    calc historySize = 60 * historySize / timeOverHistory
-    timeOverHistory = realToFrac $ latestTimeStamp - earliestTimeStamp
-    latestTimeStamp = s ^?! stateHistory . _head . historyTimeStamp . Slack.slackTime
-    earliestTimeStamp  = s ^?! stateHistory . _last . historyTimeStamp . Slack.slackTime
-
 detectFOMOEvent :: ChannelState -> Bot Bool
 detectFOMOEvent state = do
-    densitySurpassesThreshold <- do
-        density <- calcDensity state
-        config <- getConfig
-        let threshold = configThreshold config
-        return (density > threshold)
-    return $ densitySurpassesThreshold && atLeastThreeUniqueUsers
+    density <- getDensity . configHistorySize <$> getConfig
+    threshold <- configThreshold <$> getConfig
+
+    case density of
+        Nothing -> return False
+        Just d -> return $ uniqueUsers >= 3 && d > threshold
   where
-    atLeastThreeUniqueUsers = views stateHistory ((>=3) . length . nub . map (^. historyUserId)) state
+    uniqueUsers = views stateHistory (List.length . List.nub . List.map (view historyUserId)) state
+
+    getDensity :: Int -> Maybe Density
+    getDensity historySize = channelHistoryDensity historySize state
 
 shiftInHistory :: BotConfig -> HistoryItem -> ChannelState -> ChannelState
 shiftInHistory BotConfig{configHistorySize} historyItem s =
@@ -54,8 +42,8 @@ shiftInEvent BotConfig{configDebounceSize} event s =
 
 shiftIn :: Int -> a -> [a] -> [a]
 shiftIn size item xs
-    | isArrayFull xs size = item:init xs
+    | isArrayFull xs size = item:List.init xs
     | otherwise = item:xs
 
 isArrayFull :: [a] -> Int -> Bool
-isArrayFull xs size = length xs == size
+isArrayFull xs size = List.length xs == size
