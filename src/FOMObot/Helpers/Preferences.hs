@@ -27,13 +27,11 @@ addUserPrefs uid prefs = do
 
 getUserPrefs :: Slack.UserId -> Bot [Slack.ChannelId]
 getUserPrefs uid =
-    either (const []) (map cidFromByteString)
+    either (const []) (map idFromByteString)
     <$> fetchFromRedis uid
   where
     fetchFromRedis :: Slack.UserId -> Bot (Either R.Reply [ByteString])
     fetchFromRedis = R.liftRedis . R.smembers . userPrefsKey
-
-    cidFromByteString = review Slack.getId . T.pack . unpack
 
 deleteUserPrefs :: Slack.UserId -> Bot ()
 deleteUserPrefs uid = do
@@ -77,3 +75,6 @@ channelKey cid =
 
 channelNameByteString :: Slack.ChannelId -> ByteString
 channelNameByteString = pack . T.unpack . view Slack.getId
+
+idFromByteString :: ByteString -> Slack.Id a
+idFromByteString = review Slack.getId . T.pack . unpack
