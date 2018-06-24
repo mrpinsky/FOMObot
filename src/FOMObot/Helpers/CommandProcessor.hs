@@ -2,6 +2,7 @@ module FOMObot.Helpers.CommandProcessor
     ( processCommand
     ) where
 
+import Control.Lens (view)
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 import qualified Web.Slack as Slack
@@ -21,8 +22,9 @@ processCommand (Slack.Message cid (Slack.UserComment uid) txt _ _ _) =
       Help -> Slack.sendMessage cid helpText
       Unknown -> return ()
   where
+    joinChannels :: [Slack.ChannelId] -> T.Text
     joinChannels [] = "No preferences set."
-    joinChannels cids = "<#" <> T.intercalate "> <#" (map T.pack cids) <> ">"
+    joinChannels cids = "<#" <> T.intercalate "> <#" (view Slack.getId <$> cids) <> ">"
 
 processCommand _ = return ()
 

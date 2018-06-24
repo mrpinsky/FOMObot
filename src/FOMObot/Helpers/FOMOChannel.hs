@@ -4,12 +4,10 @@ module FOMObot.Helpers.FOMOChannel
     , alertUsers
     ) where
 
-import Control.Lens (uses, views, view, (^.), review)
+import Control.Lens (uses, views, view, (^.))
 import Data.List (find)
 import qualified Data.Maybe as Maybe
-import qualified Data.List as List
 import Data.Monoid ((<>))
-import qualified Data.Text as T
 import qualified Web.Slack as Slack
 import qualified Web.Slack.Message as Slack
 
@@ -36,12 +34,12 @@ alertFOMOChannel channelID = do
 
 alertUsers :: Slack.ChannelId -> Bot ()
 alertUsers cid = do
-    uids <- userIdsForChannel cid
-    channels <- Maybe.catMaybes <$> mapM getDMChannel uids
-    let channelIds = List.map getChannelId channels
-    mapM_ alertUser channelIds
+    uids <- Preferences.getUsersForChannel cid
+    userDMChannels <- Maybe.catMaybes <$> mapM getDMChannel uids
+    mapM_ alertUser userDMChannels
   where
-    userIdsForChannel cid = Preferences.getUsersForChannel $ T.unpack $ cid ^. Slack.getId
-    getChannelId = review Slack.getId . T.pack
-    alertUser cid = Slack.sendMessage cid message
-    message = "There's a party in <#" <> (cid ^. Slack.getId) <> ">!"
+    maybeChannelIds :: [Slack.UserId] -> Bot [Maybe Slack.ChannelId]
+    maybeChannelIds = mapM getDMChannel
+
+    alertUser channelId = Slack.sendMessage channelId message
+    message = "There's a party in <#" <> view Slack.getId cid <> ">!"
