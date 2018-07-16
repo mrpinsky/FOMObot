@@ -11,3 +11,6 @@ data AppState = AppState
     }
 
 makeLenses ''AppState
+
+init :: BotConfig -> AppState
+init config = AppState config emptyState
