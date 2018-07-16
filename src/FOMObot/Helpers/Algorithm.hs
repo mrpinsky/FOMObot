@@ -28,11 +28,10 @@ detectFOMOEvent state = do
 
 shiftInHistory :: BotConfig -> HistoryItem -> ChannelState -> ChannelState
 shiftInHistory BotConfig{configHistorySize} historyItem s =
-    if isFromPreviousUser
-      then
-        s & stateHistory . _head .~ historyItem
-      else
-        s & stateHistory %~ shiftIn configHistorySize historyItem
+    if isFromPreviousUser then
+      s & stateHistory . _head .~ historyItem
+    else
+      s & stateHistory %~ shiftIn configHistorySize historyItem
   where
     isFromPreviousUser = (s ^? stateHistory . _head . historyUserId) == Just (historyItem ^. historyUserId)
 

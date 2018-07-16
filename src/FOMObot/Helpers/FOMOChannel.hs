@@ -17,22 +17,16 @@ import qualified FOMObot.Helpers.Preferences as Preferences
 import FOMObot.Types.Bot
 
 isFOMOChannel :: Slack.ChannelId -> Bot Bool
-isFOMOChannel cid = views Slack.channelId (== cid) <$> getFOMOChannel
-
-getFOMOChannel :: Bot Slack.Channel
-getFOMOChannel = do
-    channels <- uses Slack.session $ view Slack.slackChannels
-    return $ Maybe.fromJust $ channelFinder channels
-  where
-    channelFinder = List.find (views Slack.channelName (== "fomo"))
+isFOMOChannel cid =
+    maybe False (views Slack.channelId (== cid)) <$> getFOMOChannel
 
 alertFOMOChannel :: Slack.ChannelId -> Bot ()
 alertFOMOChannel cid =
-    view Slack.channelId <$> getFOMOChannel
-    >>= alert message
+    getFOMOChannel
+    >>= maybe (return ())  (alert message . view Slack.channelId)
   where
     message :: Text
-    message = "<!here> There's a party in <#" <> view Slack.getId cid <> ">!"
+    message = "<!here> " <> baseMessage cid
 
 alertUsers :: Slack.ChannelId -> Bot ()
 alertUsers cid =
@@ -44,7 +38,20 @@ alertUsers cid =
     getDMChannelIds = fmap Maybe.catMaybes . mapM getDMChannel
 
     message :: Text
-    message = "There's a party in <#" <> view Slack.getId cid <> ">!"
+    message = baseMessage cid
 
 alert :: Text -> Slack.ChannelId -> Bot ()
 alert message cid = Slack.sendMessage cid message
+
+baseMessage :: Slack.ChannelId -> Text
+baseMessage cid = "There's a party in <#" <> view Slack.getId cid <> ">!"
+
+getFOMOChannel :: Bot (Maybe Slack.Channel)
+getFOMOChannel =
+    channelFinder <$> slackChannels
+  where
+    slackChannels :: Bot [Slack.Channel]
+    slackChannels = uses Slack.session (view Slack.slackChannels)
+
+    channelFinder :: [Slack.Channel] -> Maybe Slack.Channel
+    channelFinder = List.find (views Slack.channelName (== "fomo"))

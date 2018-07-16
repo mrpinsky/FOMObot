@@ -29,10 +29,10 @@ parseCommand s =
       _ -> Unknown
   where
     parseChannels :: [String] -> [Slack.ChannelId]
-    parseChannels xs = List.map cidFromString $ rights $ (parse parser "") <$> xs
+    parseChannels xs = List.map cidFromString $ rights $ parse parser "" <$> xs
 
     parser :: Parser String
-    parser = (string "<#") *> (manyTill anyChar $ char '>')
+    parser = string "<#" *> manyTill anyChar (char '>')
 
     cidFromString :: String -> Slack.ChannelId
-    cidFromString = (review Slack.getId) . T.pack
+    cidFromString = review Slack.getId . T.pack

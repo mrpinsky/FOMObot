@@ -35,9 +35,9 @@ modifyState f = do
     modifying Slack.userState $ set botState $ f state
 
 botChannelState :: String -> Bot ChannelState
-botChannelState channelID = do
-    mChannelState <- HM.lookup channelID <$> getState
-    maybe (botInsert channelID) return mChannelState
+botChannelState channelID =
+    HM.lookup channelID <$> getState
+    >>= maybe (botInsert channelID) return
 
 botInsert :: String -> Bot ChannelState
 botInsert channelID = do
@@ -46,4 +46,4 @@ botInsert channelID = do
     return newChannelState
 
 botSaveState :: String -> ChannelState -> Bot ()
-botSaveState channelID = modifyState . (HM.insert channelID)
+botSaveState channelID = modifyState . HM.insert channelID

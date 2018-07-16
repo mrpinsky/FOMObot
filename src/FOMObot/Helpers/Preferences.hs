@@ -48,11 +48,9 @@ removeUserPrefs uid prefs = do
     mapM_ (removeUserFromChannel uid) prefs
 
 getUsersForChannel :: Slack.ChannelId -> Bot [Slack.UserId]
-getUsersForChannel cid = either (const []) (map idFromByteString)
+getUsersForChannel cid =
+    either (const []) (map idFromByteString)
     <$> R.liftRedis (R.smembers $ channelKey cid)
-  where
-    idFromByteString :: ByteString -> Slack.UserId
-    idFromByteString = review Slack.getId . decodeUtf8
 
 addUserToChannel :: Slack.UserId -> Slack.ChannelId -> Bot ()
 addUserToChannel uid = void . R.liftRedis . (`R.sadd` [userIdByteString uid]) . channelKey
@@ -77,4 +75,4 @@ channelNameByteString :: Slack.ChannelId -> ByteString
 channelNameByteString = pack . T.unpack . view Slack.getId
 
 idFromByteString :: ByteString -> Slack.Id a
-idFromByteString = review Slack.getId . T.pack . unpack
+idFromByteString = review Slack.getId . decodeUtf8

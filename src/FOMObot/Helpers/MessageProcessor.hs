@@ -14,10 +14,8 @@ import FOMObot.Types.HistoryItem
 processMessage :: Slack.Event -> Bot Bool
 processMessage (Slack.Message channelID (Slack.UserComment userID) _ messageTimestamp _ _) = do
     config <- getConfig
-    let messageChannelID = T.unpack $ channelID ^. Slack.getId
 
     -- Add the message timestamp to the channel state
-    let historyItem = HistoryItem messageTimestamp userID
     channelState <- shiftInHistory config historyItem
         <$> botChannelState messageChannelID
 
@@ -31,5 +29,11 @@ processMessage (Slack.Message channelID (Slack.UserComment userID) _ messageTime
     -- Signal an event only if an event occured and no recent events
     let recentlyNotified = views stateEventHistory or channelState
     return $ eventOccurred && not recentlyNotified
+  where
+    messageChannelID :: String
+    messageChannelID = T.unpack $ channelID ^. Slack.getId
+
+    historyItem :: HistoryItem
+    historyItem = HistoryItem messageTimestamp userID
 
 processMessage _ = return False
