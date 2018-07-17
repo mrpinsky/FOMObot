@@ -56,7 +56,8 @@ Next, install the [Heroku Toolbelt].
 [Heroku]: https://www.heroku.com/
 [Heroku Toolbelt]: https://toolbelt.heroku.com/
 
-Log in to Heroku by running `heroku login`.
+Log in to Heroku by running `heroku login`, and to the Heroku Container Registry
+with `heroku container:login`.
 
 Create a new app for this project:
 
@@ -66,12 +67,6 @@ heroku scale web=0 worker=1
 ```
 
 Set the same environment variables in your Heroku app as you have in `.env` (excluding `HEROKU_APP_NAME`).
-
-Finally, install the Heroku container tools plugin:
-
-```
-heroku plugins:install heroku-container-tools
-```
 
 ## Deploying to Heroku
 
