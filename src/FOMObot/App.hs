@@ -9,7 +9,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import System.Environment (getEnv)
 import Control.Lens (uses, views, preview, (^.), (.~), (&))
-import Control.Monad (when, unless)
+import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Network.Wreq as Wreq (Response, Options, postWith, defaults, header, responseBody, FormParam((:=)))
 import qualified Web.Slack as Slack
