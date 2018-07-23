@@ -4,7 +4,7 @@ import Control.Lens (review)
 import Data.Either (rights)
 import qualified Data.Text as T
 import qualified Data.List as List
-import Text.Parsec (parse, manyTill)
+import Text.Parsec (parse, manyTill, (<|>))
 import Text.Parsec.String (Parser)
 import Text.Parsec.Char (string, anyChar, char)
 import qualified Web.Slack as Slack
@@ -32,7 +32,7 @@ parseCommand s =
     parseChannels xs = List.map cidFromString $ rights $ parse parser "" <$> xs
 
     parser :: Parser String
-    parser = string "<#" *> manyTill anyChar (char '>')
+    parser = string "<#" *> manyTill anyChar (char '>' <|> char '|')
 
     cidFromString :: String -> Slack.ChannelId
     cidFromString = review Slack.getId . T.pack
