@@ -6,4 +6,20 @@ set -o allexport
 source .env
 set +o allexport
 
+usage() { echo "Usage: $0 [-hb]" 1>&2; }
+
+while getopts ":hb" arg; do
+  case $arg in
+    b) echo "Rebuilding..."
+       stack build
+       echo "Rebuilt"
+       ;;
+    h) usage;
+       exit 0;
+       ;;
+    *) usage
+       exit 1;
+  esac
+done
+
 stack exec fomobot
