@@ -2,16 +2,20 @@ module FOMObot.App
     ( initApp
     ) where
 
+import System.Environment (getEnv)
+import Network.Wreq as Wreq (Response, Options, postWith, defaults, header, responseBody, FormParam((:=)))
+
+import Control.Lens (uses, views, preview, (^.), (.~), (&))
+import Control.Monad (unless)
+import Control.Monad.IO.Class (liftIO)
+
 import Data.Aeson.Lens
 import Data.ByteString.Lazy.Internal
 import qualified Data.List as List
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
-import System.Environment (getEnv)
-import Control.Lens (uses, views, preview, (^.), (.~), (&))
-import Control.Monad (unless)
-import Control.Monad.IO.Class (liftIO)
-import Network.Wreq as Wreq (Response, Options, postWith, defaults, header, responseBody, FormParam((:=)))
+import Data.Monoid ((<>))
+
 import qualified Web.Slack as Slack
 
 import FOMObot.Helpers.CommandProcessor
@@ -48,13 +52,37 @@ runApp m@(Slack.Message cid (Slack.UserComment uid) _ _ _ _) = isFOMOChannel cid
         handleProcessedMessage :: Maybe T.Text -> Bot ()
         handleProcessedMessage Nothing = return ()
         handleProcessedMessage (Just eventText) =
-            extractTopic eventText
+            logEventText eventText
+            >> extractTopic eventText
             >>= sendAlerts
+
+        logEventText :: T.Text -> Bot ()
+        logEventText text =
+            botLog $ T.intercalate " "
+                [ "Channel"
+                , Slack._getId cid
+                , "extracting topic from"
+                , text
+                ]
 
         sendAlerts :: Maybe T.Text -> Bot ()
         sendAlerts topic =
             alertUsers topic cid
             >> alertFOMOChannel topic cid
+            >> logAlerts topic
+
+        logAlerts :: Maybe T.Text -> Bot()
+        logAlerts topic =
+            botLog $ T.intercalate " "
+                [ "Channel"
+                , Slack._getId cid
+                , "alerted users"
+                , loggableAlertText topic
+                ]
+
+        loggableAlertText :: Maybe T.Text -> T.Text
+        loggableAlertText Nothing = "without a topic"
+        loggableAlertText (Just topic) = "with topic: " <> topic
 
 
 runApp (Slack.ImCreated uid (Slack.IM cid _ _ _ _ _)) = setDMChannel uid cid

@@ -4,9 +4,14 @@
 
 module FOMObot.Types.Bot where
 
+import qualified System.IO as IO
+
 import Control.Lens (view, uses, modifying, set)
 import Control.Monad.IO.Class (liftIO)
+
 import qualified Data.HashMap as HM
+import Data.Text
+
 import Database.Redis (MonadRedis(..), runRedis, connect)
 import qualified Web.Slack as Slack
 
@@ -47,3 +52,7 @@ botInsert channelID = do
 
 botSaveState :: String -> ChannelState -> Bot ()
 botSaveState channelID = modifyState . HM.insert channelID
+
+botLog :: Text -> Bot ()
+botLog msg =
+    liftIO $ IO.putStrLn $ unpack msg

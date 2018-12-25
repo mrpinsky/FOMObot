@@ -3,8 +3,10 @@ module FOMObot.Helpers.CommandProcessor
     ) where
 
 import Control.Lens (view)
+
 import Data.Monoid ((<>))
 import qualified Data.Text as T
+
 import qualified Web.Slack as Slack
 import qualified Web.Slack.Message as Slack
 

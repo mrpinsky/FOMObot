@@ -16,6 +16,7 @@ import URI.ByteString
 data BotConfig = BotConfig
     { configHistorySize :: Int
     , configDebounceSize :: Int
+    , configMinUniqueUsers :: Int
     , configThreshold :: Double
     , configRedisConnection :: ConnectInfo
     }
@@ -25,6 +26,7 @@ buildConfig = BotConfig
     <$> (read <$> getEnv "HISTORY_SIZE")
     <*> (read <$> getEnv "FOMO_DEBOUNCE")
     <*> (read <$> getEnv "FOMO_THRESHOLD")
+    <*> (read <$> getEnv "MIN_UNIQUE_USERS")
     <*> (parseRedisURL <$> getEnv "REDIS_URL")
 
 parseRedisURL :: String -> ConnectInfo

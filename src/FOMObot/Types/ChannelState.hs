@@ -1,9 +1,13 @@
 module FOMObot.Types.ChannelState where
 
+import Control.Lens (makeLenses, view, _head, _last, (^.), (^?), (&), (.~), (%~))
+
 import qualified Data.Text as T
-import Control.Lens (makeLenses, view, _head, _last, (^.), (^?))
+import qualified Data.List as List
+
 import qualified Web.Slack as Slack
 
+import FOMObot.Types.BotConfig
 import FOMObot.Types.HistoryItem
 
 data ChannelState = ChannelState
@@ -18,12 +22,15 @@ channelHistoryText = view (stateHistory . traverse . historyText)
 
 type Density = Double
 
-channelHistoryDensity :: Int -> ChannelState -> Maybe Density
-channelHistoryDensity historySize state =
-    stateHistoryWhenFull historySize
+channelHistoryDensity :: BotConfig -> ChannelState -> Maybe Density
+channelHistoryDensity config state =
+    stateHistoryWhenFull maxHistorySize
         >>= historyDuration
-        >>= Just . eventsPerMinute (fromIntegral historySize)
+        >>= Just . eventsPerMinute (fromIntegral maxHistorySize)
   where
+    maxHistorySize :: Int
+    maxHistorySize = configHistorySize config
+
     stateHistoryWhenFull :: Int -> Maybe [HistoryItem]
     stateHistoryWhenFull maxSize = if length channelHistory == maxSize then
         Just channelHistory
@@ -41,3 +48,25 @@ channelHistoryDensity historySize state =
         lts <- history ^? _head . historyTimeStamp . Slack.slackTime
         ets <- history ^? _last . historyTimeStamp . Slack.slackTime
         return $ lts - ets
+
+
+shiftInHistory :: BotConfig -> HistoryItem -> ChannelState -> ChannelState
+shiftInHistory BotConfig{configHistorySize} historyItem s =
+    if isFromPreviousUser then
+      s & stateHistory . _head .~ historyItem
+    else
+      s & stateHistory %~ shiftIn configHistorySize historyItem
+  where
+    isFromPreviousUser = (s ^? stateHistory . _head . historyUserId) == Just (historyItem ^. historyUserId)
+
+shiftInEvent :: BotConfig -> Maybe T.Text -> ChannelState -> ChannelState
+shiftInEvent BotConfig{configDebounceSize} event state =
+    state & stateEventHistory %~ shiftIn configDebounceSize event
+
+shiftIn :: Int -> a -> [a] -> [a]
+shiftIn size item xs
+    | isArrayFull xs size = item:List.init xs
+    | otherwise = item:xs
+
+isArrayFull :: [a] -> Int -> Bool
+isArrayFull xs size = List.length xs == size
