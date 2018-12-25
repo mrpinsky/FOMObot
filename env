@@ -1,5 +1,5 @@
 # used for Heroku deployments
-HEROKU_APP_NAME=polleverywhere-fomobot
+HEROKU_APP_NAME=timeland-fomobot
 # "API Token" from the Slack config for this bot
 SLACK_API_TOKEN=
 # number of messages in a conversation
