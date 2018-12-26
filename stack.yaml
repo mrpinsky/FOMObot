@@ -2,21 +2,17 @@
 # https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
 
 # Specifies the GHC version and set of packages available
-resolver: lts-8.8
+resolver: lts-12.24
 
 packages:
   - '.'
 
 extra-deps:
-  - slack-api-0.12
-  - wuss-1.1.6
-  - aeson-0.11.3.0
-  - hedis-0.8.3
-  - scanner-0.2
-  - tagged-0.8.5
-  - transformers-compat-0.5.1.4
+  - github: mpickering/slack-api
+    commit: ab91568180b18daabe9e1be8ea82f5cb361f2465
+  - aeson-1.4.2.0
+  - hedis-0.10.10
   - wreq-0.5.2.1
-  - cabal-doctest-1.0.6
 
 # Extra directories used by stack for building
 extra-include-dirs: [/usr/local/opt/openssl/include]

@@ -1,6 +1,6 @@
 module FOMObot.Helpers.Algorithm where
 
-import Control.Lens ((^.), (^?), (&), (.~), (%~), _head, view, views)
+import Control.Lens (view, views)
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import Data.Text

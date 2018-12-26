@@ -37,16 +37,17 @@ executable fomobot
                      , NamedFieldPuns
                      , TemplateHaskell
 
-  build-depends:       base >=4.9 && <4.10
-                     , lens
+  build-depends:       base >=4.11 && <4.12
                      , text
-                     , hashmap
+                     , lens
                      , slack-api
+                     , hashmap
                      , hedis
                      , bytestring
-                     , transformers
+                     -- , transformers
                      , parsec
                      , uri-bytestring
+                     , mtl
                      , wreq
                      , aeson
                      , lens-aeson

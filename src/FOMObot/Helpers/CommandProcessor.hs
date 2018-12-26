@@ -3,32 +3,32 @@ module FOMObot.Helpers.CommandProcessor
     ) where
 
 import Control.Lens (view)
+import Control.Monad.IO.Class (liftIO)
 
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 
 import qualified Web.Slack as Slack
-import qualified Web.Slack.Message as Slack
 
 import FOMObot.Helpers.Preferences
 import FOMObot.Types.Bot
 import FOMObot.Types.Command
 
-processCommand :: Slack.Event -> Bot ()
-processCommand (Slack.Message cid (Slack.UserComment uid) txt _ _ _) =
+processCommand :: Slack.SlackHandle -> Slack.Event -> Bot ()
+processCommand handle (Slack.Message cid (Slack.UserComment uid) txt _ _ _) =
     case parseCommand $ T.unpack txt of
       (Add xs) -> addUserPrefs uid xs
       (Remove xs) -> removeUserPrefs uid xs
-      List -> Slack.sendMessage cid =<< (joinChannels <$> getUserPrefs uid)
+      List -> liftIO . Slack.sendMessage handle cid =<< (joinChannels <$> getUserPrefs uid)
       Stop -> deleteUserPrefs uid
-      Help -> Slack.sendMessage cid helpText
+      Help -> liftIO $ Slack.sendMessage handle cid helpText
       Unknown -> return ()
   where
     joinChannels :: [Slack.ChannelId] -> T.Text
     joinChannels [] = "No preferences set."
     joinChannels cids = "<#" <> T.intercalate "> <#" (view Slack.getId <$> cids) <> ">"
 
-processCommand _ = return ()
+processCommand _ _ = return ()
 
 helpText :: T.Text
 helpText = "Possible Commands:\

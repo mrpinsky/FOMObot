@@ -9,7 +9,7 @@ module FOMObot.Helpers.Preferences
 import Control.Lens (view, review)
 import Control.Monad (void)
 import Data.ByteString (ByteString)
-import Data.ByteString.Char8 (pack, unpack)
+import Data.ByteString.Char8 (pack)
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)

@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -6,21 +7,22 @@ module FOMObot.Types.Bot where
 
 import qualified System.IO as IO
 
-import Control.Lens (view, uses, modifying, set)
+import Control.Lens (set)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.State
 
 import qualified Data.HashMap as HM
 import Data.Text
 
 import Database.Redis (MonadRedis(..), runRedis, connect)
-import qualified Web.Slack as Slack
 
 import FOMObot.Types.AppState
 import FOMObot.Types.BotConfig
 import FOMObot.Types.BotState
 import FOMObot.Types.ChannelState
 
-type Bot = Slack.Slack AppState
+newtype Bot a = Bot {runBot :: StateT AppState IO a}
+  deriving (Monad, Functor, Applicative, MonadState AppState, MonadIO)
 
 instance MonadRedis Bot where
     liftRedis f = do
@@ -28,16 +30,17 @@ instance MonadRedis Bot where
         connection <- liftIO $ connect configRedisConnection
         liftIO $ runRedis connection f
 
+initialState :: Bot AppState
+initialState = liftIO $ FOMObot.Types.AppState.init <$> buildConfig
+
 getConfig :: Bot BotConfig
-getConfig = uses Slack.userState $ view botConfig
+getConfig = fmap _botConfig get
 
 getState :: Bot BotState
-getState = uses Slack.userState $ view botState
+getState = fmap _botState get
 
 modifyState :: (BotState -> BotState) -> Bot ()
-modifyState f = do
-    state <- getState
-    modifying Slack.userState $ set botState $ f state
+modifyState f = modify . set botState . f =<< getState
 
 botChannelState :: String -> Bot ChannelState
 botChannelState channelID =

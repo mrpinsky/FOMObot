@@ -4,13 +4,15 @@ module FOMObot.Helpers.FOMOChannel
     , alertUsers
     ) where
 
-import Control.Lens (uses, views, view)
+import Control.Lens (views, view)
+import Control.Monad.IO.Class (liftIO)
+
 import qualified Data.List as List (find)
 import qualified Data.Maybe as Maybe
 import Data.Monoid ((<>))
 import Data.Text
+
 import qualified Web.Slack as Slack
-import qualified Web.Slack.Message as Slack
 
 import FOMObot.Helpers.DMChannel (getDMChannel)
 import qualified FOMObot.Helpers.Preferences as Preferences
@@ -18,23 +20,28 @@ import FOMObot.Types.Bot
 
 type Topic = Text
 
-isFOMOChannel :: Slack.ChannelId -> Bot Bool
-isFOMOChannel cid =
-    maybe False (views Slack.channelId (== cid)) <$> getFOMOChannel
-
-alertFOMOChannel :: Maybe Topic -> Slack.ChannelId -> Bot ()
-alertFOMOChannel topic cid =
-    getFOMOChannel
-    >>= maybe (return ())  (alert message . view Slack.channelId)
+isFOMOChannel :: Slack.SlackHandle -> Slack.ChannelId -> Bool
+isFOMOChannel handle cid =
+    maybe False checkId $ getFOMOChannel handle
   where
+    checkId :: Slack.Channel -> Bool
+    checkId = views Slack.channelId (== cid)
+
+alertFOMOChannel :: Slack.SlackHandle -> Maybe Topic -> Slack.ChannelId -> Bot ()
+alertFOMOChannel handle topic cid =
+    maybe (return ()) sendAlert $ getFOMOChannel handle
+  where
+    sendAlert :: Slack.Channel -> Bot ()
+    sendAlert = alert handle message . view Slack.channelId
+
     message :: Text
     message = "<!here> " <> baseMessage topic cid
 
-alertUsers :: Maybe Topic -> Slack.ChannelId -> Bot ()
-alertUsers topic cid =
+alertUsers :: Slack.SlackHandle -> Maybe Topic -> Slack.ChannelId -> Bot ()
+alertUsers handle topic cid =
     Preferences.getUsersForChannel cid
     >>= getDMChannelIds
-    >>= mapM_ (alert message)
+    >>= mapM_ (alert handle message)
   where
     getDMChannelIds :: [Slack.UserId] -> Bot [Slack.ChannelId]
     getDMChannelIds = fmap Maybe.catMaybes . mapM getDMChannel
@@ -42,8 +49,9 @@ alertUsers topic cid =
     message :: Text
     message = baseMessage topic cid
 
-alert :: Text -> Slack.ChannelId -> Bot ()
-alert message cid = Slack.sendMessage cid message
+alert :: Slack.SlackHandle -> Text -> Slack.ChannelId -> Bot ()
+alert handle message cid =
+    liftIO $ Slack.sendMessage handle cid message
 
 baseMessage :: Maybe Text -> Slack.ChannelId -> Text
 baseMessage maybeTopic cid =
@@ -53,12 +61,12 @@ baseMessage maybeTopic cid =
     <> view Slack.getId cid
     <> "> and you're invited!"
 
-getFOMOChannel :: Bot (Maybe Slack.Channel)
-getFOMOChannel =
-    channelFinder <$> slackChannels
+getFOMOChannel :: Slack.SlackHandle -> Maybe Slack.Channel
+getFOMOChannel handle =
+    channelFinder slackChannels
   where
-    slackChannels :: Bot [Slack.Channel]
-    slackChannels = uses Slack.session (view Slack.slackChannels)
+    slackChannels :: [Slack.Channel]
+    slackChannels = view Slack.slackChannels $ Slack.getSession handle
 
     channelFinder :: [Slack.Channel] -> Maybe Slack.Channel
     channelFinder = List.find (views Slack.channelName (== "fomo"))

@@ -5,9 +5,10 @@ module FOMObot.App
 import System.Environment (getEnv)
 import Network.Wreq as Wreq (Response, Options, postWith, defaults, header, responseBody, FormParam((:=)))
 
-import Control.Lens (uses, views, preview, (^.), (.~), (&))
-import Control.Monad (unless)
+import Control.Lens (preview, (.~), (&))
+import Control.Monad (unless, forever)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.State (evalStateT)
 
 import Data.Aeson.Lens
 import Data.ByteString.Lazy.Internal
@@ -29,71 +30,72 @@ import FOMObot.Types.BotConfig
 initApp :: IO ()
 initApp = do
     token <- getEnv "SLACK_API_TOKEN"
-    config <- buildConfig
-    Slack.runBot (Slack.SlackConfig token) runApp $ AppState.init config
+    let config = Slack.SlackConfig{ Slack._slackApiToken = token }
+    appState <- AppState.init <$> buildConfig
+    Slack.withSlackHandle config $ \h -> evalStateT (runBot $ fomo h) appState
 
-runApp :: Slack.Event -> Bot ()
-runApp m@(Slack.Message cid (Slack.UserComment uid) _ _ _ _) = isFOMOChannel cid >>= handleEvent
-    where
-        handleEvent :: Bool -> Bot ()
-        handleEvent ignoreFOMOChannel =
-            unless ignoreFOMOChannel $
-                isDMChannel uid cid
-                >>= processEvent
-
-        processEvent :: Bool -> Bot ()
-        processEvent isDM =
-            if isDM then
-                processCommand m
-            else
-                processMessage m
-                >>= handleProcessedMessage
-
-        handleProcessedMessage :: Maybe T.Text -> Bot ()
-        handleProcessedMessage Nothing = return ()
-        handleProcessedMessage (Just eventText) =
-            logEventText eventText
-            >> extractTopic eventText
-            >>= sendAlerts
-
-        logEventText :: T.Text -> Bot ()
-        logEventText text =
-            botLog $ T.intercalate " "
-                [ "Channel"
-                , Slack._getId cid
-                , "extracting topic from"
-                , text
-                ]
-
-        sendAlerts :: Maybe T.Text -> Bot ()
-        sendAlerts topic =
-            alertUsers topic cid
-            >> alertFOMOChannel topic cid
-            >> logAlerts topic
-
-        logAlerts :: Maybe T.Text -> Bot()
-        logAlerts topic =
-            botLog $ T.intercalate " "
-                [ "Channel"
-                , Slack._getId cid
-                , "alerted users"
-                , loggableAlertText topic
-                ]
-
-        loggableAlertText :: Maybe T.Text -> T.Text
-        loggableAlertText Nothing = "without a topic"
-        loggableAlertText (Just topic) = "with topic: " <> topic
+fomo :: Slack.SlackHandle -> Bot ()
+fomo handle =
+    forever $ liftIO (Slack.getNextEvent handle) >>= runApp handle
 
 
-runApp (Slack.ImCreated uid (Slack.IM cid _ _ _ _ _)) = setDMChannel uid cid
-
-runApp Slack.Hello =
-    uses Slack.session (views Slack.slackIms $ List.map pullOutUserAndChannel)
-    >>= mapM_ (uncurry setDMChannel)
+runApp :: Slack.SlackHandle -> Slack.Event -> Bot ()
+runApp handle m@(Slack.Message cid (Slack.UserComment uid) _ _ _ _) =
+    unless (isFOMOChannel handle cid) $ isDMChannel uid cid >>= processEvent
   where
-    pullOutUserAndChannel im = (im ^. Slack.imUser, im ^. Slack.imId)
+    processEvent :: Bool -> Bot ()
+    processEvent isDM =
+        if isDM then
+            processCommand handle m
+        else
+            processMessage m
+            >>= handleProcessedMessage
 
-runApp _ = return ()
+    handleProcessedMessage :: Maybe T.Text -> Bot ()
+    handleProcessedMessage Nothing = return ()
+    handleProcessedMessage (Just eventText) =
+        logEventText eventText
+        >> extractTopic eventText
+        >>= sendAlerts
+
+    logEventText :: T.Text -> Bot ()
+    logEventText text =
+        botLog $ T.intercalate " "
+            [ "Channel"
+            , Slack._getId cid
+            , "extracting topic from"
+            , text
+            ]
+
+    sendAlerts :: Maybe T.Text -> Bot ()
+    sendAlerts topic =
+        alertUsers handle topic cid
+        >> alertFOMOChannel handle topic cid
+        >> logAlerts topic
+
+    logAlerts :: Maybe T.Text -> Bot()
+    logAlerts topic =
+        botLog $ T.intercalate " "
+            [ "Channel"
+            , Slack._getId cid
+            , "alerted users"
+            , loggableAlertText topic
+            ]
+
+    loggableAlertText :: Maybe T.Text -> T.Text
+    loggableAlertText Nothing = "without a topic"
+    loggableAlertText (Just topic) = "with topic: " <> topic
+
+
+runApp handle (Slack.ImCreated uid (Slack.IM cid _ _ _ _ _)) = setDMChannel uid cid
+
+-- runApp handle Slack.Hello =
+--     Slack.getSession handle $ views Slack.slackIms $ List.map pullOutUserAndChannel
+--     >>= mapM_ (uncurry setDMChannel)
+--   where
+--     pullOutUserAndChannel im = (im ^. Slack.imUser, im ^. Slack.imId)
+
+runApp _ _ = return ()
 
 extractTopic :: T.Text -> Bot (Maybe T.Text)
 extractTopic eventText =

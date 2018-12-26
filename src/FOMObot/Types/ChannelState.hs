@@ -40,14 +40,14 @@ channelHistoryDensity config state =
     channelHistory :: [HistoryItem]
     channelHistory = state ^. stateHistory
 
-    eventsPerMinute :: Int -> Slack.Time -> Density
+    eventsPerMinute :: Int -> Int -> Density
     eventsPerMinute eventsCount durationInSeconds = 60 * fromIntegral eventsCount / realToFrac durationInSeconds
 
-    historyDuration :: [HistoryItem] -> Maybe Slack.Time
+    historyDuration :: [HistoryItem] -> Maybe Int
     historyDuration history = do
         lts <- history ^? _head . historyTimeStamp . Slack.slackTime
         ets <- history ^? _last . historyTimeStamp . Slack.slackTime
-        return $ lts - ets
+        return $ Slack._getTime $ lts - ets
 
 
 shiftInHistory :: BotConfig -> HistoryItem -> ChannelState -> ChannelState
